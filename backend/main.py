@@ -1,10 +1,11 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from backend.config import settings
 
 app = FastAPI(
-    title="GeoIntelligence AI",
+    title=settings.APP_NAME,
     description="AI-Based Geopolitical Conflict, Escalation & Economic Impact Forecasting",
-    version="1.0.0"
+    version=settings.APP_VERSION,
 )
 
 # Allow frontend to communicate with backend
