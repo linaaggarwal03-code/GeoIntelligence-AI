@@ -19,6 +19,7 @@ class Settings(BaseSettings):
     EIA_API_KEY: Optional[str] = None
     ACLED_API_KEY: Optional[str] = None
     ACLED_ACCESS_TOKEN: Optional[str] = None
+    COMTRADE_API_KEY: Optional[str] = None
 
     model_config = SettingsConfigDict(
         env_file=".env",

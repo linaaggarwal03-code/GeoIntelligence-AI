@@ -28,10 +28,19 @@ Thumbs.db
 # Logs
 *.log
 
-# Large datasets
+# Large datasets & downloaded raw/processed data
 *.csv
 *.xlsx
 *.parquet
+data/raw/*
+!data/raw/.gitkeep
+!data/raw/**/.gitkeep
+data/processed/*
+!data/processed/.gitkeep
+!data/processed/**/.gitkeep
+data/external/*
+!data/external/.gitkeep
+!data/external/**/.gitkeep
 
 # Trained models
 *.pkl
