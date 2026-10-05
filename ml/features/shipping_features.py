@@ -28,17 +28,17 @@ def clean_trade_flow_data(df: pd.DataFrame) -> pd.DataFrame:
 
     # Normalize period to string year/date
     if "period" in cleaned.columns:
-        cleaned["period"] = cleaned["period"].astype(str)
+        cleaned["period"] = cleaned["period"].fillna("UNKNOWN").astype(str)
 
     # Convert numeric fields
     for num_col in ["trade_value_usd", "net_weight_kg"]:
         if num_col in cleaned.columns:
             cleaned[num_col] = pd.to_numeric(cleaned[num_col], errors="coerce").fillna(0.0)
 
-    # Standardize country codes
-    for iso_col in ["reporter_iso", "partner_iso"]:
-        if iso_col in cleaned.columns:
-            cleaned[iso_col] = cleaned[iso_col].astype(str).str.upper().str.strip()
+    # Standardize string fields and handle nulls
+    for str_col in ["reporter_iso", "partner_iso", "commodity_code", "flow_code"]:
+        if str_col in cleaned.columns:
+            cleaned[str_col] = cleaned[str_col].fillna("UNKNOWN").astype(str).str.upper().str.strip()
 
     return cleaned
 
@@ -54,18 +54,19 @@ def extract_trade_concentration_features(df: pd.DataFrame) -> pd.DataFrame:
     Anti-fabrication rule: Only computes metrics on real, observed trade flows.
     """
     cleaned = clean_trade_flow_data(df)
+    columns_template = [
+        "period", "reporter_iso", "flow_code", "commodity_code", "total_trade_value_usd", "partner_count", "hhi_concentration"
+    ]
     if cleaned.empty:
-        return pd.DataFrame(columns=[
-            "period", "reporter_iso", "flow_code", "commodity_code", "total_trade_value_usd", "partner_count", "hhi_concentration"
-        ])
+        return pd.DataFrame(columns=columns_template)
 
     group_keys = [k for k in ["period", "reporter_iso", "flow_code", "commodity_code"] if k in cleaned.columns]
     if not group_keys or "trade_value_usd" not in cleaned.columns:
-        return pd.DataFrame()
+        return pd.DataFrame(columns=columns_template)
 
     results = []
-    for keys, grp in cleaned.groupby(group_keys):
-        total_val = grp["trade_value_usd"].sum()
+    for keys, grp in cleaned.groupby(group_keys, dropna=False):
+        total_val = float(grp["trade_value_usd"].sum())
         if total_val <= 0:
             hhi = 0.0
         else:
@@ -77,6 +78,9 @@ def extract_trade_concentration_features(df: pd.DataFrame) -> pd.DataFrame:
         row["partner_count"] = int((grp["trade_value_usd"] > 0).sum())
         row["hhi_concentration"] = round(hhi, 4)
         results.append(row)
+
+    if not results:
+        return pd.DataFrame(columns=columns_template)
 
     res_df = pd.DataFrame(results)
     return res_df.sort_values(by=group_keys).reset_index(drop=True)
