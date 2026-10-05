@@ -1,6 +1,12 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from backend.config import settings
+from backend.routers import (
+    economic_router,
+    oil_router,
+    scenarios_router,
+    shipping_router,
+)
 
 app = FastAPI(
     title=settings.APP_NAME,
@@ -16,6 +22,12 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Register Forecasting and Intelligence Routers
+app.include_router(oil_router)
+app.include_router(economic_router)
+app.include_router(shipping_router)
+app.include_router(scenarios_router)
 
 
 @app.get("/")
