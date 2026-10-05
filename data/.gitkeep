@@ -1,5 +1,0 @@
-import pandas as pd
-df = pd.read_csv('GeoIntelligence-AI/data/bilateral_trade_flow_changes.csv')
-
-print(df.head())
-print(df.columns)
