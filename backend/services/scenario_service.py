@@ -34,7 +34,13 @@ class ScenarioService:
                     scenario_name=scenario,
                     modifications=mods,
                 )
-                return result.to_dict()
+                res = result.to_dict()
+                res["changed_inputs"] = res.get("changed_input_features", {})
+                res["limitations_notice"] = (
+                    "Counterfactual scenario outputs represent model projections under hypothetical input shocks "
+                    "and should not be interpreted as guaranteed outcomes."
+                )
+                return res
 
             elif target_type == "economic":
                 country = req.country or "USA"
@@ -49,7 +55,13 @@ class ScenarioService:
                     scenario_name=scenario,
                     modifications=mods,
                 )
-                return result.to_dict()
+                res = result.to_dict()
+                res["changed_inputs"] = res.get("changed_input_features", {})
+                res["limitations_notice"] = (
+                    "Counterfactual scenario outputs represent model projections under hypothetical input shocks "
+                    "and should not be interpreted as guaranteed outcomes."
+                )
+                return res
 
             else:
                 raise HTTPException(status_code=400, detail=f"Unsupported target_type '{target_type}'. Use 'oil' or 'economic'.")

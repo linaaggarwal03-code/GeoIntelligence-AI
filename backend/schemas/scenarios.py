@@ -35,9 +35,14 @@ class ScenarioSimulationResponse(BaseModel):
     scenario_forecast: float
     absolute_difference: float
     percentage_difference: float
+    changed_inputs: Optional[Dict[str, Any]] = Field(None, description="Direct summary of changed inputs for frontend display")
     changed_input_features: Dict[str, ChangedFeatureDetail]
     as_of_date: str
     forecast_target_date: str
+    limitations_notice: Optional[str] = Field(
+        "Counterfactual scenario outputs represent model projections under hypothetical input shocks and should not be interpreted as guaranteed outcomes.",
+        description="Important model caveats for frontend display",
+    )
 
 
 class ScenarioPresetsResponse(BaseModel):

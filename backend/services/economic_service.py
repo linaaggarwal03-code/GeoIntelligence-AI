@@ -24,6 +24,7 @@ class EconomicService:
         self.fetcher = WorldBankFetcher(raw_data_dir=raw_data_dir)
         self._macro_cache: Dict[str, pd.DataFrame] = {}
         self._forecaster_cache: Dict[Tuple[str, str, int], EconomicImpactForecaster] = {}
+        self._evaluation_cache: Dict[Tuple[str, str, int], Any] = {}
 
     def validate_horizon(self, horizon_days: int) -> int:
         if horizon_days not in SUPPORTED_ECONOMIC_HORIZONS:
@@ -86,8 +87,9 @@ class EconomicService:
             model_type=model_type,
         )
         try:
-            forecaster.train_and_evaluate(macro_df=macro_df, oil_df=oil_df)
+            eval_res = forecaster.train_and_evaluate(macro_df=macro_df, oil_df=oil_df)
             self._forecaster_cache[cache_key] = forecaster
+            self._evaluation_cache[cache_key] = eval_res
             return forecaster, macro_df, oil_df
         except ValueError as e:
             raise HTTPException(status_code=400, detail=str(e))
@@ -100,7 +102,29 @@ class EconomicService:
     ) -> Dict[str, Any]:
         forecaster, macro_df, oil_df = self.get_or_train_forecaster(country, horizon_days, target_indicator)
         try:
-            return forecaster.forecast_impact(macro_df=macro_df, oil_df=oil_df)
+            res = forecaster.forecast_impact(macro_df=macro_df, oil_df=oil_df)
+            cache_key = (forecaster.country, forecaster.target_indicator, forecaster.horizon_days)
+            pred_val = res["predicted_impact_value"]
+            base_ref = res["baseline_reference_value"]
+
+            res["horizon"] = f"{horizon_days}d"
+            res["predicted_impact"] = pred_val
+            res["baseline"] = base_ref
+            res["baseline_comparison"] = {
+                "benchmark_type": "historical_mean_persistence",
+                "baseline_value": base_ref,
+                "predicted_impact": pred_val,
+                "absolute_difference": round(pred_val - base_ref, 4),
+            }
+            if cache_key in self._evaluation_cache:
+                res["evaluation_metrics"] = self._evaluation_cache[cache_key].ml_metrics.to_dict()
+            res["limitations"] = {
+                "is_deterministic": False,
+                "notice": "Economic impact forecasts represent econometric mixed-frequency projections under annual reporting publication lags and trailing oil volatility. External policy interventions and trade sanctions introduce significant forecasting variance.",
+            }
+            return res
+        except HTTPException:
+            raise
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Failed to generate economic impact forecast: {str(e)}")
 
@@ -112,6 +136,8 @@ class EconomicService:
     ) -> Dict[str, Any]:
         forecaster, macro_df, oil_df = self.get_or_train_forecaster(country, horizon_days, target_indicator)
         eval_res = forecaster.train_and_evaluate(macro_df=macro_df, oil_df=oil_df)
+        cache_key = (forecaster.country, forecaster.target_indicator, forecaster.horizon_days)
+        self._evaluation_cache[cache_key] = eval_res
         return eval_res.to_dict()
 
     def get_explanation(
@@ -136,12 +162,37 @@ class EconomicService:
         else:
             raise HTTPException(status_code=400, detail=f"Unsupported explanation mode '{mode}'. Use 'local' or 'global'.")
 
+        expl_dict = explanation.to_dict()
+        base_val = explanation.base_value
+        ranked_features = []
+        if mode.lower() == "global":
+            for f in expl_dict.get("feature_importances", []):
+                ranked_features.append({
+                    "rank": f["rank"],
+                    "feature": f["feature"],
+                    "importance": f["mean_abs_shap"],
+                    "direction": "neutral",
+                    "feature_value": None,
+                })
+        else:
+            for c in expl_dict.get("contributions", []):
+                ranked_features.append({
+                    "rank": c["rank"],
+                    "feature": c["feature"],
+                    "importance": c["shap_value"],
+                    "direction": c["direction"],
+                    "feature_value": c.get("feature_value"),
+                })
+
         return {
             "country": forecaster.country,
             "target_indicator": forecaster.target_indicator,
             "horizon_days": forecaster.horizon_days,
             "mode": mode.lower(),
-            "explanation": explanation.to_dict(),
+            "base_value": base_val,
+            "ranked_features": ranked_features,
+            "explanation": expl_dict,
+            "summary": f"Top driver for {forecaster.country} {forecaster.target_indicator} ({mode} mode): {ranked_features[0]['feature'] if ranked_features else 'N/A'}",
         }
 
 

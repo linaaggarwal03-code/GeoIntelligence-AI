@@ -139,11 +139,12 @@ class OilPriceForecaster:
         future_price = price.shift(-self.horizon_days)
         target_return = (future_price - price) / price
 
-        # Candidate feature columns: drop identifier, target, and date columns
+        # Candidate feature columns: keep strictly numeric engineered features, exclude target and raw metadata
         exclude_cols = [
             "period", "series", "source", "value", "units", "series_description"
         ]
-        feature_cols = [c for c in feat_df.columns if c not in exclude_cols]
+        numeric_cols = feat_df.select_dtypes(include=[np.number]).columns
+        feature_cols = [c for c in numeric_cols if c not in exclude_cols]
 
         # Valid rows where both features and target exist (drop the last `horizon_days` rows)
         valid_idx = target_return.dropna().index

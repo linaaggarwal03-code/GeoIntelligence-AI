@@ -258,3 +258,123 @@ def test_scenarios_simulate_invalid_params():
     }
     resp = client.post("/api/scenarios/simulate", json=payload)
     assert resp.status_code == 400
+
+
+# ---------------------------------------------------------------------------
+# Step 12: Frontend-Ready Production API Contract Tests
+# ---------------------------------------------------------------------------
+
+def test_frontend_production_contract_oil_forecast():
+    """Verify Oil Forecast contract matches frontend requirements."""
+    resp = client.get("/api/oil/forecast?series=brent&horizon_days=30")
+    assert resp.status_code == 200
+    data = resp.json()
+
+    # Core identification & horizon
+    assert data["series"] == "RBRTE"
+    assert data["commodity"] == "Brent Crude Oil"
+    assert data["horizon_days"] == 30
+
+    # Pricing & return projections
+    assert isinstance(data["current_price"], float)
+    assert isinstance(data["predicted_price"], float)
+    assert "projected_return_pct" in data
+    assert "forecast_target_date" in data
+
+    # Baseline benchmark comparison
+    assert "baseline_comparison" in data
+    base_comp = data["baseline_comparison"]
+    assert base_comp["benchmark_type"] == "persistence_random_walk"
+    assert "baseline_price" in base_comp
+    assert "difference_dollars" in base_comp
+
+    # Evaluation metrics & performance transparency
+    assert "evaluation_metrics" in data
+    assert "mae" in data["evaluation_metrics"]
+    assert "rmse" in data["evaluation_metrics"]
+    assert "r2" in data["evaluation_metrics"]
+
+    # Model uncertainty & caveats notice (not labeled as certain)
+    assert "limitations" in data
+    assert data["limitations"]["is_deterministic"] is False
+    assert "geopolitical" in data["limitations"]["notice"].lower()
+
+
+def test_frontend_production_contract_economic_forecast():
+    """Verify Economic Impact Forecast contract matches frontend requirements."""
+    resp = client.get("/api/economic/forecast?country=USA&horizon_days=30")
+    assert resp.status_code == 200
+    data = resp.json()
+
+    # Core identification
+    assert data["country"] == "USA"
+    assert data["target_indicator"] == "inflation_impact_pct"
+    assert data["horizon_days"] == 30
+    assert data["horizon"] == "30d"
+
+    # Prediction & baseline aliases
+    assert isinstance(data["predicted_impact"], float)
+    assert isinstance(data["baseline"], float)
+    assert data["predicted_impact"] == data["predicted_impact_value"]
+    assert data["baseline"] == data["baseline_reference_value"]
+
+    # Baseline comparison structure
+    assert "baseline_comparison" in data
+    assert data["baseline_comparison"]["benchmark_type"] == "historical_mean_persistence"
+    assert "absolute_difference" in data["baseline_comparison"]
+
+    # Performance metrics & caveats
+    assert "evaluation_metrics" in data
+    assert "mae" in data["evaluation_metrics"]
+    assert "limitations" in data
+    assert data["limitations"]["is_deterministic"] is False
+
+
+def test_frontend_production_contract_shap_explanations():
+    """Verify SHAP explainability responses expose ranked feature drivers cleanly."""
+    # 1. Oil SHAP
+    resp_oil = client.get("/api/oil/explain?series=brent&horizon_days=30&mode=local")
+    assert resp_oil.status_code == 200
+    data_oil = resp_oil.json()
+    assert "ranked_features" in data_oil
+    assert len(data_oil["ranked_features"]) > 0
+    first_feat = data_oil["ranked_features"][0]
+    assert "rank" in first_feat
+    assert "feature" in first_feat
+    assert "importance" in first_feat
+    assert "direction" in first_feat
+    assert "summary" in data_oil
+    assert isinstance(data_oil["base_value"], float)
+
+    # 2. Economic SHAP
+    resp_econ = client.get("/api/economic/explain?country=USA&horizon_days=30&mode=global")
+    assert resp_econ.status_code == 200
+    data_econ = resp_econ.json()
+    assert "ranked_features" in data_econ
+    assert len(data_econ["ranked_features"]) > 0
+    assert data_econ["ranked_features"][0]["rank"] == 1
+    assert "summary" in data_econ
+
+
+def test_frontend_production_contract_what_if():
+    """Verify What-If scenario simulation returns complete frontend contract."""
+    payload = {
+        "target_type": "oil",
+        "scenario_name": "positive_oil_shock",
+        "horizon_days": 30,
+        "series": "brent",
+    }
+    resp = client.post("/api/scenarios/simulate", json=payload)
+    assert resp.status_code == 200
+    data = resp.json()
+
+    assert data["scenario_name"] == "positive_oil_shock"
+    assert "baseline_forecast" in data
+    assert "scenario_forecast" in data
+    assert "absolute_difference" in data
+    assert "percentage_difference" in data
+    assert "changed_inputs" in data
+    assert "changed_input_features" in data
+    assert "limitations_notice" in data
+    assert "hypothetical" in data["limitations_notice"].lower()
+

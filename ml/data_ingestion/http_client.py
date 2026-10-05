@@ -75,7 +75,14 @@ class HTTPClient:
         if "User-Agent" not in req_headers:
             req_headers["User-Agent"] = "GeoIntelligence-AI/1.0"
 
-        logger.info(f"Sending GET request to {url} (params: {params})")
+        # Sanitize sensitive params before logging
+        safe_params = None
+        if params:
+            safe_params = {
+                k: ("***" if any(s in k.lower() for s in ["key", "token", "secret", "auth", "pass"]) else v)
+                for k, v in params.items()
+            }
+        logger.info(f"Sending GET request to {url} (params: {safe_params})")
 
         try:
             response = self.session.get(
