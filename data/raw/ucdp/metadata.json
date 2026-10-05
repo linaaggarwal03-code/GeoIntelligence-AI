@@ -1,0 +1,16 @@
+{
+  "source": "Uppsala Conflict Data Program (UCDP), Uppsala University",
+  "dataset_name": "UCDP Georeferenced Event Dataset (GED) Global",
+  "dataset_version": "26.1",
+  "retrieval_timestamp_utc": "2026-10-04T15:15:41.104596+00:00",
+  "source_url": "https://ucdp.uu.se/downloads/ged/ged261-csv.zip",
+  "source_filename": "GEDEvent_v26_1.csv",
+  "raw_zip_filename": "ged261-csv.zip",
+  "raw_zip_size_bytes": 39122522,
+  "raw_zip_sha256": "8c941d84954e555ee2e54f40fa04d9203bf1e2f962203d0a9930966c4947c667",
+  "raw_csv_filename": "GEDEvent_v26_1.csv",
+  "raw_csv_size_bytes": 273992720,
+  "raw_csv_sha256": "61c3bf0a86374778343ba30c28a18b1fe739e2c33a76055504427eded4f8be27",
+  "raw_record_count": 417968,
+  "validation_status": "PASSED"
+}
